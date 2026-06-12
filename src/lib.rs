@@ -16,7 +16,7 @@ pub enum BitcoinError {
 impl CompactSize {
     pub fn new(value: u64) -> Self {
         // TODO: Construct a CompactSize from a u64 value
-         CompactSize {value}
+        CompactSize { value }
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -41,9 +41,6 @@ impl CompactSize {
             out.extend_from_slice(&v.to_le_bytes());
             out
         }
-
-
-
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), BitcoinError> {
@@ -54,7 +51,7 @@ impl CompactSize {
         if bytes.is_empty() {
             return Err(BitcoinError::InsufficientBytes);
         }
- 
+
         match bytes[0] {
             0xFD => {
                 if bytes.len() < 3 {
@@ -81,7 +78,6 @@ impl CompactSize {
             }
             n => Ok((CompactSize::new(n as u64), 1)),
         }
-    
     }
 }
 
@@ -109,14 +105,14 @@ impl<'de> Deserialize<'de> for Txid {
 
         let s: String = Deserialize::deserialize(deserializer)?;
         let bytes = hex::decode(&s).map_err(serde::de::Error::custom)?;
- 
+
         if bytes.len() != 32 {
             return Err(serde::de::Error::custom(format!(
                 "Invalid Txid length: expected 32 bytes, got {}",
                 bytes.len()
             )));
         }
- 
+
         let mut arr = [0u8; 32];
         arr.copy_from_slice(&bytes);
         Ok(Txid(arr))
@@ -152,14 +148,13 @@ impl OutPoint {
         if bytes.len() < 36 {
             return Err(BitcoinError::InsufficientBytes);
         }
- 
+
         let mut txid_arr = [0u8; 32];
         txid_arr.copy_from_slice(&bytes[0..32]);
- 
+
         let vout = u32::from_le_bytes([bytes[32], bytes[33], bytes[34], bytes[35]]);
- 
+
         Ok((OutPoint::new(txid_arr, vout), 36))
-    
     }
 }
 
@@ -186,17 +181,16 @@ impl Script {
         // Return error if not enough bytes
         let (compact, prefix_len) = CompactSize::from_bytes(bytes)?;
         let script_len = compact.value as usize;
- 
+
         if bytes.len() < prefix_len + script_len {
             return Err(BitcoinError::InsufficientBytes);
         }
- 
+
         let script_bytes = bytes[prefix_len..prefix_len + script_len].to_vec();
- 
+
         Ok((Script::new(script_bytes), prefix_len + script_len))
     }
-    }
-
+}
 
 impl Deref for Script {
     type Target = Vec<u8>;
@@ -238,29 +232,23 @@ impl TransactionInput {
         // - Sequence (4 bytes)
 
         let (previous_output, op_len) = OutPoint::from_bytes(bytes)?;
- 
+
         let remaining = &bytes[op_len..];
         let (script_sig, script_len) = Script::from_bytes(remaining)?;
- 
+
         let total_before_seq = op_len + script_len;
- 
+
         if bytes.len() < total_before_seq + 4 {
             return Err(BitcoinError::InsufficientBytes);
         }
- 
+
         let seq_bytes = &bytes[total_before_seq..total_before_seq + 4];
-        let sequence = u32::from_le_bytes([
-            seq_bytes[0],
-            seq_bytes[1],
-            seq_bytes[2],
-            seq_bytes[3],
-        ]);
- 
+        let sequence = u32::from_le_bytes([seq_bytes[0], seq_bytes[1], seq_bytes[2], seq_bytes[3]]);
+
         Ok((
             TransactionInput::new(previous_output, script_sig, sequence),
             total_before_seq + 4,
         ))
-    
     }
 }
 
@@ -289,17 +277,17 @@ impl BitcoinTransaction {
         // - lock_time (4 bytes LE)
 
         let mut out = Vec::new();
- 
+
         out.extend_from_slice(&self.version.to_le_bytes());
- 
+
         out.extend_from_slice(&CompactSize::new(self.inputs.len() as u64).to_bytes());
- 
+
         for input in &self.inputs {
             out.extend_from_slice(&input.to_bytes());
         }
- 
+
         out.extend_from_slice(&self.lock_time.to_le_bytes());
- 
+
         out
     }
 
@@ -310,25 +298,25 @@ impl BitcoinTransaction {
         if bytes.len() < 4 {
             return Err(BitcoinError::InsufficientBytes);
         }
- 
+
         let version = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
         let mut offset = 4;
- 
+
         let (compact, compact_len) = CompactSize::from_bytes(&bytes[offset..])?;
         let input_count = compact.value as usize;
         offset += compact_len;
- 
+
         let mut inputs = Vec::with_capacity(input_count);
         for _ in 0..input_count {
             let (input, input_len) = TransactionInput::from_bytes(&bytes[offset..])?;
             inputs.push(input);
             offset += input_len;
         }
- 
+
         if bytes.len() < offset + 4 {
             return Err(BitcoinError::InsufficientBytes);
         }
- 
+
         let lock_time_bytes = &bytes[offset..offset + 4];
         let lock_time = u32::from_le_bytes([
             lock_time_bytes[0],
@@ -337,9 +325,8 @@ impl BitcoinTransaction {
             lock_time_bytes[3],
         ]);
         offset += 4;
- 
+
         Ok((BitcoinTransaction::new(version, inputs, lock_time), offset))
-    
     }
 }
 
@@ -347,11 +334,11 @@ impl fmt::Display for BitcoinTransaction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // TODO: Format a user-friendly string showing version, inputs, lock_time
         // Display scriptSig length and bytes, and previous output info
-    
+
         writeln!(f, "Version: {}", self.version)?;
         writeln!(f, "Lock Time: {}", self.lock_time)?;
         writeln!(f, "Inputs: {}", self.inputs.len())?;
- 
+
         for (i, input) in self.inputs.iter().enumerate() {
             writeln!(f, "  Input {}:", i)?;
             writeln!(
@@ -364,11 +351,7 @@ impl fmt::Display for BitcoinTransaction {
                 "    Previous Output Vout: {}",
                 input.previous_output.vout
             )?;
-            writeln!(
-                f,
-                "    ScriptSig Length: {}",
-                input.script_sig.bytes.len()
-            )?;
+            writeln!(f, "    ScriptSig Length: {}", input.script_sig.bytes.len())?;
             writeln!(
                 f,
                 "    ScriptSig Bytes: {}",
@@ -376,8 +359,7 @@ impl fmt::Display for BitcoinTransaction {
             )?;
             writeln!(f, "    Sequence: {}", input.sequence)?;
         }
- 
+
         Ok(())
-    
     }
 }
