@@ -196,7 +196,7 @@ impl Script {
         Ok((Script::new(script_bytes), prefix_len + script_len))
     }
     }
-}
+
 
 impl Deref for Script {
     type Target = Vec<u8>;
