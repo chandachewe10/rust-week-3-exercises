@@ -300,7 +300,7 @@ impl BitcoinTransaction {
  
         out.extend_from_slice(&self.lock_time.to_le_bytes());
  
-        outs
+        out
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), BitcoinError> {
